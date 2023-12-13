@@ -1,0 +1,175 @@
+//This is the structural implementation of Multiplixer
+module MUX(output M , input A , input B , input C , input D , input S0 , input S1);
+    wire n0, n1, w0, w1, w2, w3;
+    
+    not not_gate0(n0, S0);
+    not not_gate1(n1, S1);
+    and and_gate0(w0, A, n0, n1);
+    and and_gate1(w1, B, n1, S0);
+    and and_gate2(w2, C, S1, n0);
+    and and_gate3(w3, D, S0, S1);
+    or or_gate(M, w0, w1, w2, w3);
+
+endmodule
+////////////////////////////////////////////////////////////////////
+//This is the structural implemntation of half adder. we need half adder to make full adder.
+module half_adder(output G, output C, input M, input X);
+    
+    xor xor_gate(G, M, X);
+    and and_gate(C, M, X);
+
+endmodule
+//This is the structural implementation of full adder by using 2 half adder.
+module full_adder(output G, output C, input M, input X, input S);
+    wire w1, w2, w3;
+
+    half_adder HA1(w1, w2, M, X);
+    half_adder HA2(G, w3, S, w1);
+    or or_gate(C, w2, w3);
+
+endmodule
+///////////////////////////////////////////////////////////////////////////////////
+//implementation of the circuit cosists of 6 (4x1 mulitplexer), 3(full adder), 3(xor gate)
+//all multiplexer takes S0 and S1
+//first mux takes(A0, A0, B0, 1) and gives us M0
+//second mux takes(A1, A1, B1, 0) and gives us M1
+//third mux takes(A2, A2, B2, 0) and gives us M2
+//fourth mux takes(1, B0, A0, B0) and gives us M3
+//fifth mux takes(0, B1, A1, B1) and gives us M4
+//sixth mux takes(0, B2, A2, B2) and gives us M5
+//first xor takes(S1, M3) and gives us X0
+//second xor takes(S1, M4) and gives us X1
+//third xor takes(S1, M5) and gives us X2
+//first full-adder(M0, X0, S1) and gives us G0, C0
+//second full-adder(M1, X1, C0) and gives us G1, C1
+//third full-adder(M2, X2, C1) and gives us G2, C2
+module main(output [2:0]G, input [2:0]A, input [2:0]B, input [1:0]S);
+
+    wire [2:0]X;
+    wire [2:0]C;
+
+    MUX first_mux (.M(M0), .A(A[0]), .B(A[0]), .C(B[0]), .D(1'b1), .S0(S[0]), .S1(S[1]));
+    MUX second_mux (.M(M1), .A(A[1]), .B(A[1]), .C(B[1]), .D(1'b0), .S0(S[0]), .S1(S[1]));
+    MUX third_mux (.M(M2), .A(A[2]), .B(A[2]), .C(B[2]), .D(1'b0), .S0(S[0]), .S1(S[1]));
+    MUX fourth_mux (.M(M3), .A(1'b1), .B(B[0]), .C(A[0]), .D(B[0]), .S0(S[0]), .S1(S[1]));
+    MUX fifth_mux (.M(M4), .A(1'b0), .B(B[1]), .C(A[1]), .D(B[1]), .S0(S[0]), .S1(S[1]));
+    MUX sixth_mux (.M(M5), .A(1'b0), .B(B[2]), .C(A[2]), .D(B[2]), .S0(S[0]), .S1(S[1]));
+
+
+    xor xor_gate1 (X[0], S[1], M3);
+    xor xor_gate2 (X[1], S[1], M4);
+    xor xor_gate3 (X[2], S[1], M5);
+
+    full_adder full_adder1 (.G(G[0]), .C(C[0]), .M(M0), .X(X[0]), .S(S[1]));
+    full_adder full_adder2 (.G(G[1]), .C(C[1]), .M(M1), .X(X[1]), .S(C[0]));
+    full_adder full_adder3 (.G(G[2]), .C(C[2]), .M(M2), .X(X[2]), .S(C[1]));
+
+endmodule
+
+
+
+    
+    
+
+///////////////////////////////////////////////////////////////
+//Here is the test bench - contains 40 test casses
+module test_bench_three_bit_signed();
+
+    reg [2:0] A;
+    reg [2:0] B;
+    reg [1:0] S;
+    wire [2:0] G;
+
+    main uut (
+      .G(G),.A(A),.B(B),.S(S)
+    );
+
+    initial begin
+      $monitor("Time=%0t A=%b B=%b S=%b G=%b",$time, A, B, S, G);
+
+      //Test cases
+      //Test case 1: A=3, B=-4, S0=0, S1=0 (G = A + 1)
+      A = 3'b011; B = 3'b100; S = 2'b00; #10;
+      //Test case 2: A=3, B=-4, S0=0, S1=1 (G = A + B)
+      A = 3'b011; B = 3'b100; S = 2'b01; #10;
+      //Test case 3: A=3, B=-4, S0=1, S1=0 (G = B - A)
+      A = 3'b011; B = 3'b100; S = 2'b10; #10;
+      //Test case 4: A=3, B=-4, S0=1, S1=1 (G = 1 - B)
+      A = 3'b011; B = 3'b100; S = 2'b11; #10;
+      //Test case 5: A=0, B=0, S0=0, S1=0 (G = A + 1)
+      A = 3'b000; B = 3'b000; S = 2'b00; #10;
+      //Test case 6: A=-1, B=-1, S0=0, S1=1 (G = A + B)
+      A = 3'b111; B = 3'b111; S = 2'b01; #10;
+      //Test case 7: A=2, B=-2, S0=1, S1=0 (G = B - A)
+      A = 3'b010; B = 3'b110; S = 2'b10; #10;
+      //Test case 8: A=-3, B=1, S0=1, S1=1 (G = 1 - B)
+      A = 3'b101; B = 3'b001; S = 2'b11; #10;
+      //Test case 9: A=1, B=2, S0=0, S1=0 (G = A + 1)
+      A = 3'b001; B = 3'b010; S = 2'b00; #10;
+      //Test case 10: A=2, B=1, S0=0, S1=1 (G = A + B)
+      A = 3'b010; B = 3'b001; S = 2'b01; #10;
+      //Test case 11: A=3, B=-4, S0=1, S1=0 (G = B - A)
+      A = 3'b011; B = 3'b100; S = 2'b10; #10;
+      //Test case 12: A=-1, B=-2, S0=1, S1=1 (G = 1 - B)
+      A = 3'b111; B = 3'b110; S = 2'b11; #10;
+      //Test case 13: A=1, B=2, S0=0, S1=0 (G = A + 1)
+      A = 3'b001; B = 3'b010; S = 2'b00; #10;
+      //Test case 14: A=-1, B=-1, S0=0, S1=1 (G = A + B)
+      A = 3'b111; B = 3'b111; S = 2'b01; #10;
+      //Test case 15: A=2, B=-2, S0=1, S1=0 (G = B - A)
+      A = 3'b010; B = 3'b110; S = 2'b10; #10;
+      //Test case 16: A=-3, B=1, S0=1, S1=1 (G = 1 - B)
+      A = 3'b101; B = 3'b001; S = 2'b11; #10;
+      //Test case 17: A=3, B=-4, S0=0, S1=0 (G = A + 1)
+      A = 3'b011; B = 3'b100; S = 2'b00; #10;
+      //Test case 18: A=-1, B=-2, S0=0, S1=1 (G = A + B)
+      A = 3'b111; B = 3'b110; S = 2'b01; #10;
+      //Test case 19: A=2, B=1, S0=1, S1=0 (G = B - A)
+      A = 3'b010; B = 3'b001; S = 2'b10; #10;
+      //Test case 20: A=1, B=2, S0=1, S1=1 (G = 1 - B)
+      A = 3'b001; B = 3'b010; S = 2'b11; #10;
+      //Test case 21: A=-1, B=-1, S0=0, S1=0 (G = A + 1)
+      A = 3'b111; B = 3'b111; S = 2'b00; #10;
+      //Test case 22: A=0, B=0, S0=0, S1=1 (G = A + B)
+      A = 3'b000; B = 3'b000; S = 2'b01; #10;
+      //Test case 23: A=-3, B=1, S0=1, S1=0 (G = B - A)
+      A = 3'b101; B = 3'b001; S = 2'b10; #10;
+      //Test case 24: A=2, B=-2, S0=1, S1=1 (G = 1 - B)
+      A = 3'b010; B = 3'b110; S = 2'b11; #10;
+      //Test case 25: A=-1, B=-1, S0=0, S1=0 (G = A + 1)
+      A = 3'b111; B = 3'b111; S = 2'b00; #10;
+      //Test case 26: A=2, B=1, S0=0, S1=1 (G = A + B)
+      A = 3'b010; B = 3'b001; S = 2'b01; #10;
+      //Test case 27: A=1, B=2, S0=1, S1=0 (G = B - A)
+      A = 3'b001; B = 3'b010; S = 2'b10; #10;
+      //Test case 28: A=-3, B=1, S0=1, S1=1 (G = 1 - B)
+      A = 3'b111; B = 3'b110; S = 2'b11; #10;
+      //Test case 29: A=3, B=1, S0=0, S1=0 (G = A + 1)
+      A = 3'b101; B = 3'b001; S = 2'b00; #10;
+      //Test case 30: A=1, B=2, S0=0, S1=1 (G = A + B)
+      A = 3'b001; B = 3'b010; S = 2'b01; #10;
+      //Test case 31: A=-3, B=1, S0=1, S1=0 (G = B - A)
+      A = 3'b111; B = 3'b110; S = 2'b10; #10;
+      //Test case 32: A=2, B=-2, S0=1, S1=1 (G = 1 - B)
+      A = 3'b010; B = 3'b110; S = 2'b11; #10;
+      //Test case 33: A=3, B=-4, S0=0, S1=0 (G = A + 1)
+      A = 3'b011; B = 3'b100; S = 2'b00; #10;
+      //Test case 34: A=1, B=2, S0=0, S1=1 (G = A + B)
+      A = 3'b010; B = 3'b001; S = 2'b01; #10;
+      //Test case 35: A=-3, B=1, S0=1, S1=0 (G = B - A)
+      A = 3'b111; B = 3'b110; S = 2'b10; #10;
+      //Test case 36: A=1, B=2, S0=1, S1=1 (G = 1 - B)
+      A = 3'b001; B = 3'b010; S = 2'b11; #10;
+      //Test case 37: A=2, B=-2, S0=0, S1=0 (G = A + 1)
+      A = 3'b010; B = 3'b110; S = 2'b00; #10;
+      //Test case 38: A=-1, B=-1, S0=0, S1=1 (G = A + B)
+      A = 3'b111; B = 3'b111; S = 2'b01; #10;
+      //Test case 39: A=1, B=2, S0=1, S1=0 (G = B - A)
+      A = 3'b001; B = 3'b010; S = 2'b10; #10;
+      //Test case 40: A=3, B=1, S0=1, S1=1 (G = 1 - B)
+      A = 3'b101; B = 3'b001; S = 2'b11; #10;
+
+      $finish;
+    end
+
+endmodule
